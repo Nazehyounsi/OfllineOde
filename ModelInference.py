@@ -47,7 +47,7 @@ sequence_length = 100  # Length of the sequence
 randomized_sequence = generate_random_series_sequence(sequence_length)
 print("Randomized Sequence:", randomized_sequence)
 n_hidden = 512
-n_T = 500
+n_T = 1000
 num_event_types =13
 event_embedding_dim =64
 embed_output_dim =128
@@ -357,7 +357,7 @@ def main():
                                                sequence_length)
     mi_embedder = SpeakingTurnDescriptorEmbedder(num_event_types, event_embedding_dim, embed_output_dim)
     chunk_embedder = ChunkDescriptorEmbedder(continious_embedding_dim=16, valence_embedding_dim=8, output_dim=64)
-    model_path = 'saved_model_NewmodelChunkd.pth'
+    model_path = 'saved_model_NewmodelChunkd1000.pth'
     #model_path = 'saved_model_NewmodelChunkdCFG.pth'
     nn_model = Model_mlp_diff(
         observation_embedder, mi_embedder, chunk_embedder, sequence_length, net_type="transformer")
@@ -427,12 +427,14 @@ def main():
         # Post-process thae best prediction
         best_prediction = np.round(best_prediction)
         best_prediction[best_prediction == 4] = 3
+        best_prediction[best_prediction >= 5] = 0
+
         best_prediction[best_prediction < 0] = 0
 
         print("la sequence obs :")
         print(x_batch[0])
-        # print("la target :")
-        # print(y_batch[0])
+        print("la target :")
+        print(y_batch[0])
         print("la prediction :")
         print(best_prediction)
         print("la durée du chunk :")

@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 from dpm_solver_pytorch import NoiseScheduleVP, DPM_Solver, model_wrapper
-from diffusers import LMSDiscreteScheduler, DDIMScheduler
+#from diffusers import LMSDiscreteScheduler, DDIMScheduler
 
 
 class ChunkDescriptorEmbedder(nn.Module):
@@ -250,70 +250,70 @@ class Model_Cond_Diffusion(nn.Module):
 
     #
     # #HYBRIDE
-    # def sample(self, x_batch, z_batch, chunk_descriptor, initial_steps=50, ode_steps=5, return_y_trace=False):
-    #     # Use the usual sampling method for initial_steps
-    #     n_sample = x_batch.shape[0]
-    #     y_shape = (n_sample, x_batch.shape[1])
-    #     y_i = torch.randn(y_shape).to(self.device)
-    #     context_mask = torch.zeros(x_batch.shape[0]).to(self.device) if self.guide_w == 0.0 else torch.cat([
-    #         torch.zeros(x_batch.shape[0] // 2), torch.ones(x_batch.shape[0] // 2)
-    #     ]).to(self.device)
-    #     is_zero = self.guide_w > -1e-3 and self.guide_w < 1e-3
-    #
-    #     if not is_zero:
-    #         if len(x_batch.shape) > 2:
-    #             x_batch = x_batch.repeat(2, 1, 1, 1)
-    #             z_batch = z_batch.repeat(2, 1, 1, 1)
-    #             chunk_descriptor = chunk_descriptor.repeat(2, 1, 1, 1)
-    #         else:
-    #             x_batch = x_batch.repeat(2, 1)
-    #             z_batch = z_batch.repeat(2, 1)
-    #             chunk_descriptor = chunk_descriptor.repeat(2, 1)
-    #         context_mask = torch.zeros(x_batch.shape[0]).to(self.device)
-    #         context_mask[n_sample:] = 1.0
-    #
-    #     y_i_store = []  # Define y_i_store for tracing if required
-    #     for i in range(self.n_T, self.n_T - initial_steps, -1):
-    #         t_is = torch.tensor([i / self.n_T]).to(self.device).repeat(n_sample, 1)
-    #         if not is_zero:
-    #             y_i = y_i.repeat(2, 1)
-    #             t_is = t_is.repeat(2, 1)
-    #         z = torch.randn(y_shape).to(self.device) if i > 1 else 0
-    #         eps = self.nn_model(y_i, x_batch, z_batch, chunk_descriptor, t_is, context_mask)
-    #         if not is_zero:
-    #             eps1 = eps[:n_sample]
-    #             eps2 = eps[n_sample:]
-    #             eps = (1 + self.guide_w) * eps1 - self.guide_w * eps2
-    #             y_i = y_i[:n_sample]
-    #         y_i = self.oneover_sqrta[i] * (y_i - eps * self.mab_over_sqrtmab[i]) + self.sqrt_beta_t[i] * z
-    #         if return_y_trace and (i % 20 == 0 or i == self.n_T or i < 8):
-    #             y_i_store.append(y_i.detach().cpu().numpy())
-    #
-    #     # Use DPM solver for the remaining steps
-    #     noise_schedule = NoiseScheduleVP(schedule='linear', alphas_cumprod=(self.sqrtab[self.n_T - initial_steps:]))
-    #     additional_context = {
-    #         'x_batch': x_batch,
-    #         'z_batch': z_batch,
-    #         'chunk_descriptor': chunk_descriptor,
-    #         'context_mask': context_mask
-    #     }
-    #     model_fn = model_wrapper(self.nn_model, noise_schedule, model_type='noise',
-    #                              additional_context=additional_context)
-    #     dpm_solver = DPM_Solver(model_fn, noise_schedule)
-    #     y_i = dpm_solver.sample(
-    #         y_i,
-    #         steps=ode_steps,
-    #         method='multistep',
-    #         order=2,
-    #         skip_type='time_uniform',
-    #         return_intermediate=return_y_trace,
-    #         solver_type='dpmsolver'
-    #     )
-    #
-    #     if return_y_trace:
-    #         return y_i[0], y_i_store + y_i[1]  # Combine the traces from both methods
-    #     else:
-    #         return y_i
+    def sample(self, x_batch, z_batch, chunk_descriptor, initial_steps=50, ode_steps=5, return_y_trace=False):
+        # Use the usual sampling method for initial_steps
+        n_sample = x_batch.shape[0]
+        y_shape = (n_sample, x_batch.shape[1])
+        y_i = torch.randn(y_shape).to(self.device)
+        context_mask = torch.zeros(x_batch.shape[0]).to(self.device) if self.guide_w == 0.0 else torch.cat([
+            torch.zeros(x_batch.shape[0] // 2), torch.ones(x_batch.shape[0] // 2)
+        ]).to(self.device)
+        is_zero = self.guide_w > -1e-3 and self.guide_w < 1e-3
+
+        if not is_zero:
+            if len(x_batch.shape) > 2:
+                x_batch = x_batch.repeat(2, 1, 1, 1)
+                z_batch = z_batch.repeat(2, 1, 1, 1)
+                chunk_descriptor = chunk_descriptor.repeat(2, 1, 1, 1)
+            else:
+                x_batch = x_batch.repeat(2, 1)
+                z_batch = z_batch.repeat(2, 1)
+                chunk_descriptor = chunk_descriptor.repeat(2, 1)
+            context_mask = torch.zeros(x_batch.shape[0]).to(self.device)
+            context_mask[n_sample:] = 1.0
+
+        y_i_store = []  # Define y_i_store for tracing if required
+        for i in range(self.n_T, self.n_T - initial_steps, -1):
+            t_is = torch.tensor([i / self.n_T]).to(self.device).repeat(n_sample, 1)
+            if not is_zero:
+                y_i = y_i.repeat(2, 1)
+                t_is = t_is.repeat(2, 1)
+            z = torch.randn(y_shape).to(self.device) if i > 1 else 0
+            eps = self.nn_model(y_i, x_batch, z_batch, chunk_descriptor, t_is, context_mask)
+            if not is_zero:
+                eps1 = eps[:n_sample]
+                eps2 = eps[n_sample:]
+                eps = (1 + self.guide_w) * eps1 - self.guide_w * eps2
+                y_i = y_i[:n_sample]
+            y_i = self.oneover_sqrta[i] * (y_i - eps * self.mab_over_sqrtmab[i]) + self.sqrt_beta_t[i] * z
+            if return_y_trace and (i % 20 == 0 or i == self.n_T or i < 8):
+                y_i_store.append(y_i.detach().cpu().numpy())
+
+        # Use DPM solver for the remaining steps
+        noise_schedule = NoiseScheduleVP(schedule='linear', alphas_cumprod=(self.alphabar_t[initial_steps:]))
+        additional_context = {
+            'x_batch': x_batch,
+            'z_batch': z_batch,
+            'chunk_descriptor': chunk_descriptor,
+            'context_mask': context_mask
+        }
+        model_fn = model_wrapper(self.nn_model, noise_schedule, model_type='noise',
+                                 additional_context=additional_context)
+        dpm_solver = DPM_Solver(model_fn, noise_schedule)
+        y_i = dpm_solver.sample(
+            y_i,
+            steps=ode_steps,
+            method='multistep',
+            order=2,
+            skip_type='time_uniform',
+            return_intermediate=return_y_trace,
+            solver_type='dpmsolver'
+        )
+
+        if return_y_trace:
+            return y_i[0], y_i_store + y_i[1]  # Combine the traces from both methods
+        else:
+            return y_i
 
 #ODE
     # #
@@ -360,77 +360,77 @@ class Model_Cond_Diffusion(nn.Module):
 
 #CLASSIQUE
 
-    def sample(self, x_batch, z_batch, chunk_descriptor, return_y_trace=False):
-        # also use this as a shortcut to avoid doubling batch when guide_w is zero
-        is_zero = False
-        if self.guide_w > -1e-3 and self.guide_w < 1e-3:
-            is_zero = True
-
-        # how many noisy actions to begin with
-        n_sample = x_batch.shape[0]
-
-        y_shape = (n_sample, x_batch.shape[1])
-
-        # sample initial noise, y_0 ~ N(0, 1),
-        y_i = torch.randn(y_shape).to(self.device)
-
-        if not is_zero:
-            if len(x_batch.shape) > 2:
-                # repeat x_batch twice, so can use guided diffusion
-                x_batch = x_batch.repeat(2, 1, 1, 1)
-                z_batch = z_batch.repeat(2, 1, 1, 1)
-                chunk_descriptor = chunk_descriptor.repeat(2, 1, 1, 1)
-            else:
-                # repeat x_batch twice, so can use guided diffusion
-                x_batch = x_batch.repeat(2, 1)
-                z_batch = z_batch.repeat(2, 1)
-                chunk_descriptor = chunk_descriptor.repeat(2, 1,)
-
-            # half of context will be zero
-            context_mask = torch.zeros(x_batch.shape[0]).to(self.device)
-            context_mask[n_sample:] = 1.0  # makes second half of batch context free
-            #context_mask2 = torch.zeros(z_batch.shape[0]).to(self.device)
-            #context_mask2[n_sample:] = 1.0  # makes second half of batch context free
-        else:
-            context_mask = torch.zeros(x_batch.shape[0]).to(self.device)
-            #context_mask2 = torch.zeros(z_batch.shape[0]).to(self.device)
-
-
-        #     #x_embed = self.nn_model.embed_context(x_batch)
-        #     x = self.event_embedder(x_batch)
-        #     x_embed = self.x_sequence_transformer(x)
-
-        # run denoising chain
-        y_i_store = []  # if want to trace how y_i evolved
-        for i in range(self.n_T, 0, -1):
-            t_is = torch.tensor([i / self.n_T]).to(self.device)
-            t_is = t_is.repeat(n_sample, 1)
-
-            if not is_zero:
-                # double batch
-                y_i = y_i.repeat(2, 1)
-                t_is = t_is.repeat(2, 1)
-
-            z = torch.randn(y_shape).to(self.device) if i > 1 else 0
-
-
-            # if extract_embedding:
-            #     eps = self.nn_model(y_i, x_batch, t_is) #ici possible d'input le context_mask
-
-            eps = self.nn_model(y_i, x_batch, z_batch, chunk_descriptor, t_is, context_mask)
-            if not is_zero:
-                eps1 = eps[:n_sample]
-                eps2 = eps[n_sample:]
-                eps = (1 + self.guide_w) * eps1 - self.guide_w * eps2
-                y_i = y_i[:n_sample]
-            y_i = self.oneover_sqrta[i] * (y_i - eps * self.mab_over_sqrtmab[i]) + self.sqrt_beta_t[i] * z
-            if return_y_trace and (i % 20 == 0 or i == self.n_T or i < 8):
-                y_i_store.append(y_i.detach().cpu().numpy())
-
-        if return_y_trace:
-            return y_i, y_i_store
-        else:
-            return y_i
+    # def sample(self, x_batch, z_batch, chunk_descriptor, return_y_trace=False):
+    #     # also use this as a shortcut to avoid doubling batch when guide_w is zero
+    #     is_zero = False
+    #     if self.guide_w > -1e-3 and self.guide_w < 1e-3:
+    #         is_zero = True
+    #
+    #     # how many noisy actions to begin with
+    #     n_sample = x_batch.shape[0]
+    #
+    #     y_shape = (n_sample, x_batch.shape[1])
+    #
+    #     # sample initial noise, y_0 ~ N(0, 1),
+    #     y_i = torch.randn(y_shape).to(self.device)
+    #
+    #     if not is_zero:
+    #         if len(x_batch.shape) > 2:
+    #             # repeat x_batch twice, so can use guided diffusion
+    #             x_batch = x_batch.repeat(2, 1, 1, 1)
+    #             z_batch = z_batch.repeat(2, 1, 1, 1)
+    #             chunk_descriptor = chunk_descriptor.repeat(2, 1, 1, 1)
+    #         else:
+    #             # repeat x_batch twice, so can use guided diffusion
+    #             x_batch = x_batch.repeat(2, 1)
+    #             z_batch = z_batch.repeat(2, 1)
+    #             chunk_descriptor = chunk_descriptor.repeat(2, 1,)
+    #
+    #         # half of context will be zero
+    #         context_mask = torch.zeros(x_batch.shape[0]).to(self.device)
+    #         context_mask[n_sample:] = 1.0  # makes second half of batch context free
+    #         #context_mask2 = torch.zeros(z_batch.shape[0]).to(self.device)
+    #         #context_mask2[n_sample:] = 1.0  # makes second half of batch context free
+    #     else:
+    #         context_mask = torch.zeros(x_batch.shape[0]).to(self.device)
+    #         #context_mask2 = torch.zeros(z_batch.shape[0]).to(self.device)
+    #
+    #
+    #     #     #x_embed = self.nn_model.embed_context(x_batch)
+    #     #     x = self.event_embedder(x_batch)
+    #     #     x_embed = self.x_sequence_transformer(x)
+    #
+    #     # run denoising chain
+    #     y_i_store = []  # if want to trace how y_i evolved
+    #     for i in range(self.n_T, 0, -1):
+    #         t_is = torch.tensor([i / self.n_T]).to(self.device)
+    #         t_is = t_is.repeat(n_sample, 1)
+    #
+    #         if not is_zero:
+    #             # double batch
+    #             y_i = y_i.repeat(2, 1)
+    #             t_is = t_is.repeat(2, 1)
+    #
+    #         z = torch.randn(y_shape).to(self.device) if i > 1 else 0
+    #
+    #
+    #         # if extract_embedding:
+    #         #     eps = self.nn_model(y_i, x_batch, t_is) #ici possible d'input le context_mask
+    #
+    #         eps = self.nn_model(y_i, x_batch, z_batch, chunk_descriptor, t_is, context_mask)
+    #         if not is_zero:
+    #             eps1 = eps[:n_sample]
+    #             eps2 = eps[n_sample:]
+    #             eps = (1 + self.guide_w) * eps1 - self.guide_w * eps2
+    #             y_i = y_i[:n_sample]
+    #         y_i = self.oneover_sqrta[i] * (y_i - eps * self.mab_over_sqrtmab[i]) + self.sqrt_beta_t[i] * z
+    #         if return_y_trace and (i % 20 == 0 or i == self.n_T or i < 8):
+    #             y_i_store.append(y_i.detach().cpu().numpy())
+    #
+    #     if return_y_trace:
+    #         return y_i, y_i_store
+    #     else:
+    #         return y_i
     def sample_update(self, x_batch, betas, n_T, return_y_trace=False):
         original_nT = self.n_T
 
